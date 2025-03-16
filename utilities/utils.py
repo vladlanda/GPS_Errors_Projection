@@ -20,7 +20,7 @@ from multiprocessing import Pool, cpu_count
 from requests.packages import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-N_PROCESSES = 1
+MAX_N_PROCESSES = cpu_count() // 2
 MAX_CHILEDS = 1
 
 RNX_root = 'RNX'
@@ -29,6 +29,8 @@ CLK_root = 'CLK'
 SP3_root = 'SP3'
 OUTPUT_root = 'OUT'
 TEMP_root = 'TEMP'
+
+VERIFY_REST_SECURITY = False
 
 
 def gLab_output_to_numpy(output_file):
@@ -86,11 +88,20 @@ def download_and_save_file(url,file_path):
     def download(url):
         # filename = url.split('/')[-1]
         
-        response = requests.head(url,verify=False)
+        response = requests.head(url,verify=VERIFY_REST_SECURITY)
         if response.status_code != 200:
             # raise Exception('HTTP error ' + str(response.status_code) +" "+ str(url))
             return None
-        response = requests.get(url,verify=False)
+        n_attepts = 3
+        response = None
+        for n in range(n_attepts):
+            try:
+                response = requests.get(url,verify=VERIFY_REST_SECURITY)
+            except:
+                # print(f'Error downloading {url}')
+                pass
+            if response: break
+        if response is None: return None
         buf = BytesIO()
         for chunk in response.iter_content(chunk_size=1000):
                 buf.write(chunk)
@@ -144,7 +155,7 @@ def download_clk(dates_list=[],agencies_list=['igs'],download_folder=CLK_root,lo
     urls_to_download = [value['url'] for value in files_to_download_dict.values()]
 
     # print("There are {} CPUs on this machine ".format(cpu_count()))
-    pool = Pool(N_PROCESSES)
+    pool = Pool(MAX_N_PROCESSES)
     results = pool.starmap(download_and_save_file,zip(urls_to_download,list(files_to_download_dict.keys())))
     pool.close()
     pool.join()
@@ -199,7 +210,7 @@ def download_rinex(station_name,dates_list=[],download_folder=RNX_root,log_filen
     # print(urls_to_download)
 
     # print("There are {} CPUs on this machine ".format(cpu_count()))
-    pool = Pool(N_PROCESSES)
+    pool = Pool(MAX_N_PROCESSES)
     results = pool.starmap(download_and_save_file,zip(urls_to_download,list(files_to_download_dict.keys())))
     # print(results)
     pool.close()
@@ -339,7 +350,7 @@ def download_ionex_v2(dates_list=[],agencies_list=['igs','ckm'],download_folder=
 
     # print(files_to_download_dict)
     # print("There are {} CPUs on this machine ".format(cpu_count()))
-    pool = Pool(N_PROCESSES)
+    pool = Pool(MAX_N_PROCESSES)
     # pool = Pool(1)
     results = pool.starmap(download_and_save_file,zip(urls_to_download,list(files_to_download_dict.keys())))
     # print(results)
@@ -416,7 +427,7 @@ def download_ionex(dates_list=[],agencies_list=['igs','ckm'],download_folder=ION
     # print(urls_to_download)
 
     # print("There are {} CPUs on this machine ".format(cpu_count()))
-    pool = Pool(N_PROCESSES)
+    pool = Pool(MAX_N_PROCESSES)
     # pool = Pool(1)
     results = pool.starmap(download_and_save_file,zip(urls_to_download,list(files_to_download_dict.keys())))
     # print(results)
@@ -513,7 +524,7 @@ def download_sp3_v2(dates_list=[],download_folder=SP3_root,log_filename='downloa
                 for base_url in base_urls:
                     url = '{}/{}/{}'.format(base_url,gps_week,Z_file_name)
                     
-                    response = requests.head(url,verify=False)
+                    response = requests.head(url,verify=VERIFY_REST_SECURITY)
                     if response.status_code == 200:
                         files_to_download_dict[extracted_file_path] = {'url':url,'date':date}
                         file_url_exist = True
@@ -527,7 +538,7 @@ def download_sp3_v2(dates_list=[],download_folder=SP3_root,log_filename='downloa
     # return urls_to_download
 
     # print("There are {} CPUs on this machine ".format(cpu_count()))
-    pool = Pool(N_PROCESSES)
+    pool = Pool(MAX_N_PROCESSES)
     results = pool.starmap(download_and_save_file,zip(urls_to_download,list(files_to_download_dict.keys())))
     # rename_sp3_to_old_format(results)
     pool.close()
@@ -581,7 +592,7 @@ def download_sp3(dates_list=[],agencies_list=['igs'],download_folder=SP3_root,lo
     urls_to_download = [value['url'] for value in files_to_download_dict.values()]
 
     # print("There are {} CPUs on this machine ".format(cpu_count()))
-    pool = Pool(N_PROCESSES)
+    pool = Pool(MAX_N_PROCESSES)
     results = pool.starmap(download_and_save_file,zip(urls_to_download,list(files_to_download_dict.keys())))
     pool.close()
     pool.join()

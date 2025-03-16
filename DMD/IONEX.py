@@ -27,7 +27,7 @@ from io import BytesIO
 from atomicwrites import atomic_write
 import hatanaka
 from multiprocessing import Pool, cpu_count
-MAX_PROCESSES = cpu_count() // 2
+
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -44,7 +44,8 @@ BASE_URL = 'https://cddis.nasa.gov/archive/gnss/products/ionex'
 RMS_MAP_DIM = (13,71,73)
 CODE_PREDICTED_NAMES = ['c1p','c2p']
 
-
+MAX_PROCESSES = cpu_count() // 2
+VERIFY_REST_SECURITY = True
 
 #https://notebook.community/daniestevez/jupyter_notebooks/IONEX
 #https://cddis.nasa.gov/Data_and_Derived_Products/GNSS/atmospheric_products.html
@@ -195,11 +196,7 @@ class IONEXv2(object):
 			if not p is None: break
 			n_pred_days += 1
 
-		# print(list_of_rms_products)
-		# print(delayed_date_range)
-		# print(n_pred_days)
-
-		logging.info(f'Executing DMD...')
+		logging.info(f'Executing DMD...,#{n_pred_days} days prediction')
 		rms_maps = self.get_numpy_rmsmaps(list_of_rms_products)
 		pred_maps = dmd.DMD_prediction(rms_maps,n_pred_days=n_pred_days)
 		# print(predicted_code_files)
@@ -285,11 +282,20 @@ class IONEXv2(object):
 		def download(url):
 			# filename = url.split('/')[-1]
 			
-			response = requests.head(url,verify=True)
+			response = requests.head(url,verify=VERIFY_REST_SECURITY)
 			if response.status_code != 200:
 				# raise Exception('HTTP error ' + str(response.status_code) +" "+ str(url))
 				return None
-			response = requests.get(url,verify=True)
+			n_attepts = 3
+			response = None
+			for n in range(n_attepts):
+				try:
+					response = requests.get(url,verify=VERIFY_REST_SECURITY)
+				except:
+					# print(f'Error downloading {url}')
+					pass
+				if response: break
+			if response is None: return None
 			buf = BytesIO()
 			for chunk in response.iter_content(chunk_size=1000):
 					buf.write(chunk)
@@ -340,7 +346,7 @@ class IONEXv2(object):
 				extracted_file_path = os.path.join(self.directory,file_name)
 				os.makedirs(os.path.dirname(extracted_file_path), exist_ok=True)
 
-				if requests.head(url,verify=True).status_code == 200:
+				if requests.head(url,verify=VERIFY_REST_SECURITY).status_code == 200:
 					files_to_download_dict[extracted_file_path] = {'url':url,'date':date}
 					break
 
@@ -364,7 +370,7 @@ class IONEXv2(object):
 				extracted_file_path = os.path.join(self.directory,file_name)
 				os.makedirs(os.path.dirname(extracted_file_path), exist_ok=True)
 
-				if requests.head(url,verify=True).status_code == 200:
+				if requests.head(url,verify=VERIFY_REST_SECURITY).status_code == 200:
 					files_to_download_dict[extracted_file_path] = {'url':url,'date':date}
 					break
 
