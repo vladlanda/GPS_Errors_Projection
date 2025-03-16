@@ -1,0 +1,17 @@
+Application
+CLK
+ION
+netCDF
+OUT
+RNX
+SP3
+DMD/downloaded_files
+DMD/products
+products
+TEMP
+__pycache__
+.netrc
+*.pk
+*.log
+tests.ipynb
+download.py
